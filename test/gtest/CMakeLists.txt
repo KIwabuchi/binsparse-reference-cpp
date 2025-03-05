@@ -24,8 +24,17 @@ add_executable(
   csr_test.cpp
   coo_test.cpp
 )
+target_link_libraries(binsparse-tests binsparse fmt GTest::gtest_main  Metall::Metall Threads::Threads ${BOOST_COMPONENTS})
+target_compile_definitions(binsparse-tests PRIVATE METALL_LINK_WITH_BOOST_JSON)
 
-target_link_libraries(binsparse-tests binsparse fmt GTest::gtest_main)
+add_executable(
+  binsparse-metall-tests
+  csr_metall_test.cpp
+  coo_metall_test.cpp
+)
+target_link_libraries(binsparse-metall-tests binsparse fmt GTest::gtest_main  Metall::Metall Threads::Threads ${BOOST_COMPONENTS})
+target_compile_definitions(binsparse-metall-tests PRIVATE METALL_LINK_WITH_BOOST_JSON)
+
 
 download_data(https://suitesparse-collection-website.herokuapp.com/MM/DIMACS10/chesapeake.tar.gz
               chesapeake.tar.gz)
@@ -38,3 +47,4 @@ download_data(https://suitesparse-collection-website.herokuapp.com/MM/Belcastro/
 
 include(GoogleTest)
 gtest_discover_tests(binsparse-tests)
+gtest_discover_tests(binsparse-metall-tests)

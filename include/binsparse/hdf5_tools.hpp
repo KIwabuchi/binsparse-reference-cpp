@@ -123,14 +123,17 @@ inline H5::PredType get_type(H5::DataSet& dataset) {
 
 template <typename H5GroupOrFile, std::ranges::contiguous_range R>
   requires(!std::is_same_v<std::remove_cvref_t<R>, std::string>)
-void write_dataset(H5GroupOrFile& f, const std::string& label, R&& r) {
+void write_dataset(H5GroupOrFile& f, const std::string& label, R&& r,
+  int def_level = 9) {
   using T = std::ranges::range_value_t<R>;
   hsize_t size = std::ranges::size(r);
   H5::DataSpace dataspace(1, &size);
 
   H5::DSetCreatPropList property_list;
-  property_list.setChunk(1, &size);
-  property_list.setDeflate(9);
+  // Maximum chunk size is 2^32, use 2^31 just to be safe
+  const hsize_t chunk_size = std::min<size_t>(size, 1ULL << 31);
+  property_list.setChunk(1, &chunk_size);
+  property_list.setDeflate(def_level);
 
   auto dataset = f.createDataSet(label.c_str(), get_hdf5_standard_type<T>(),
                                  dataspace, property_list);

@@ -2,17 +2,26 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <boost/container/vector.hpp>
 #include <ranges>
 
 namespace binsparse {
 
 namespace __detail {
 
-template <typename T, typename I>
+template <typename T, typename I, typename Allocator = std::allocator<T>>
 class csr_matrix_owning {
 public:
-  csr_matrix_owning(std::tuple<I, I> shape, structure_t structure = general)
-      : shape_(shape), structure_(structure) {}
+  using allocator_type = Allocator;
+
+  explicit csr_matrix_owning(const allocator_type& alloc = allocator_type())
+  : values_(alloc), rowptr_(alloc), colind_(alloc) {}
+
+  csr_matrix_owning(std::tuple<I, I> shape, structure_t structure = general,
+                    const allocator_type& alloc = allocator_type())
+      : shape_(shape), values_(alloc), rowptr_(alloc), colind_(alloc),
+        structure_(structure) {}
 
   auto values() {
     return std::ranges::views::all(values_);
@@ -85,19 +94,38 @@ public:
     return structure_;
   }
 
+  // Just need a function to set shape and structure
+  void reset(std::tuple<I, I> new_shape, structure_t structure) {
+    shape_ = new_shape;
+    structure_ = structure;
+    values_.clear();
+    rowptr_.clear();
+    colind_.clear();
+  }
+
 private:
+  template <typename V>
+  using other_alloc = typename std::allocator_traits<Allocator>::template rebind_alloc<V>;
+
   std::tuple<I, I> shape_;
-  std::vector<T> values_;
-  std::vector<I> rowptr_;
-  std::vector<I> colind_;
+  boost::container::vector<T, other_alloc<T>> values_;
+  boost::container::vector<I, other_alloc<I>> rowptr_;
+  boost::container::vector<I, other_alloc<I>> colind_;
   structure_t structure_;
 };
 
-template <typename T, typename I>
+template <typename T, typename I, typename Allocator = std::allocator<T>>
 class coo_matrix_owning {
 public:
-  coo_matrix_owning(std::tuple<I, I> shape, structure_t structure = general)
-      : shape_(shape), structure_(structure) {}
+  using allocator_type = Allocator;
+
+  explicit coo_matrix_owning(const allocator_type& alloc = allocator_type())
+    : values_(alloc), rowind_(alloc), colind_(alloc) {}
+
+  coo_matrix_owning(std::tuple<I, I> shape, structure_t structure = general,
+                    const allocator_type& alloc = allocator_type())
+      : shape_(shape), values_(alloc), rowind_(alloc), colind_(alloc),
+        structure_(structure) {}
 
   auto values() {
     return std::ranges::views::all(values_);
@@ -155,18 +183,31 @@ public:
     return structure_;
   }
 
+  // Just need a function to set shape and structure
+  void reset(std::tuple<I, I> new_shape, structure_t structure) {
+    shape_ = new_shape;
+    structure_ = structure;
+    values_.clear();
+    rowind_.clear();
+    colind_.clear();
+  }
+
 private:
+  template <typename V>
+  using other_alloc = typename std::allocator_traits<Allocator>::template rebind_alloc<V>;
+
   std::tuple<I, I> shape_;
-  std::vector<T> values_;
-  std::vector<I> rowind_;
-  std::vector<I> colind_;
+  boost::container::vector<T, other_alloc<T>> values_;
+  boost::container::vector<I, other_alloc<I>> rowind_;
+  boost::container::vector<I, other_alloc<I>> colind_;
   structure_t structure_;
 };
 
 /// Read in the Matrix Market file at location `file_path` and
 /// return a data structure with the matrix.
 template <typename T, typename I, typename MatrixType>
-inline MatrixType mmread(std::string file_path, bool one_indexed = true) {
+inline void
+mmread(std::string file_path, MatrixType& m_out, bool one_indexed = true) {
   using index_type = I;
   using size_type = std::size_t;
 
@@ -235,7 +276,7 @@ inline MatrixType mmread(std::string file_path, bool one_indexed = true) {
   ss.str(buf);
   ss >> m >> n >> nnz;
 
-  MatrixType m_out({m, n}, structure);
+  m_out.reset({m, n}, structure);
 
   using coo_type = std::vector<std::tuple<std::tuple<I, I>, T>>;
   coo_type matrix;
@@ -290,8 +331,6 @@ inline MatrixType mmread(std::string file_path, bool one_indexed = true) {
   m_out.assign_tuples(matrix.begin(), matrix.end());
 
   f.close();
-
-  return m_out;
 }
 
 /// Read in the Matrix Market file at location `file_path` and

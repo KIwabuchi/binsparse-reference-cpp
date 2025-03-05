@@ -7,15 +7,15 @@
 TEST(BinsparseReadWrite, CSRFormat) {
   using T = float;
   using I = std::size_t;
-
+  using M = binsparse::__detail::csr_matrix_owning<T, I>;
   std::string binsparse_file = "out.bsp.hdf5";
 
   auto base_path = find_prefix(files.front());
 
   for (auto&& file : files) {
     auto file_path = base_path + file;
-    auto x = binsparse::__detail::mmread<
-        T, I, binsparse::__detail::csr_matrix_owning<T, I>>(file_path);
+    M x;
+    binsparse::__detail::mmread<T, I, M>(file_path, x);
 
     auto&& [num_rows, num_columns] = x.shape();
     binsparse::csr_matrix<T, I> matrix{x.values().data(), x.colind().data(),
