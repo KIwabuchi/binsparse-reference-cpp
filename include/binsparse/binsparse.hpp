@@ -5,6 +5,8 @@
 #include <binsparse/containers/matrices.hpp>
 #include <binsparse/detail.hpp>
 #include <memory>
+#include <metall/json/json.hpp>
+#include <metall/metall.hpp>
 #include <nlohmann/json.hpp>
 #include <type_traits>
 
@@ -444,6 +446,91 @@ inline auto inspect(std::string fname) {
   assert(binsparse_metadata["version"] >= 0.1);
 
   return data;
+}
+
+// Use Metall w/ single thread
+#define METALL_DISABLE_CONCURRENCY
+
+template <typename T, typename I, typename A>
+binsparse::__detail::csr_matrix_owning<T, I, A>&
+read_csr_matrix(metall::manager& manager) {
+  return *(manager
+               .find<binsparse::__detail::csr_matrix_owning<T, I, A>>(
+                   metall::unique_instance)
+               .first);
+}
+
+template <typename T, typename I, typename A>
+void write_csr_matrix(metall::manager& manager,
+                      binsparse::__detail::csr_matrix_owning<T, I, A>&& mo,
+                      nlohmann::json user_keys = {}) {
+
+  manager.construct<binsparse::__detail::csr_matrix_owning<T, I, A>>(
+      metall::unique_instance)(std::move(mo));
+
+  // Store metadata
+  using json_object_type =
+      metall::json::object<metall::manager::allocator_type<std::byte>>;
+  auto root_json = *(manager.construct<json_object_type>(
+      metall::unique_instance)(manager.get_allocator()));
+  auto& json = root_json["binsparse"].emplace_object();
+  json["version"] = version;
+  json["format"] = "CSR";
+  auto& data_types = json["data_types"].emplace_object();
+  data_types["pointers_to_1"] = type_info<I>::label();
+  data_types["indices_1"] = type_info<I>::label();
+  data_types["values"] = type_info<T>::label();
+
+  if (mo.structure() != general) {
+    json["structure"] =
+        __detail::get_structure_name(mo.structure()).value().c_str();
+  }
+
+  // TODO: implement this
+  //  for (auto&& v : user_keys.items()) {
+  //    (*j)[v.key()] = v.value();
+  //  }
+}
+
+template <typename T, typename I, typename A>
+binsparse::__detail::coo_matrix_owning<T, I, A>&
+read_coo_matrix(metall::manager& manager) {
+  return *(manager
+               .find<binsparse::__detail::coo_matrix_owning<T, I, A>>(
+                   metall::unique_instance)
+               .first);
+}
+
+template <typename T, typename I, typename A>
+void write_coo_matrix(metall::manager& manager,
+                      binsparse::__detail::coo_matrix_owning<T, I, A>&& mo,
+                      nlohmann::json user_keys = {}) {
+  manager.construct<binsparse::__detail::coo_matrix_owning<T, I, A>>(
+      metall::unique_instance)(std::move(mo));
+
+  // Store metadata
+  using json_object_type =
+      metall::json::object<metall::manager::allocator_type<std::byte>>;
+  auto* root_json = manager.construct<json_object_type>(
+      metall::unique_instance)(manager.get_allocator());
+  auto& json = (*root_json)["binsparse"].emplace_object();
+
+  json["version"] = version;
+  json["format"] = "COO";
+  auto& data_types = json["data_types"].emplace_object();
+  data_types["indices_0"] = type_info<I>::label();
+  data_types["indices_1"] = type_info<I>::label();
+  data_types["values"] = type_info<T>::label();
+
+  if (mo.structure() != general) {
+    json["structure"] =
+        __detail::get_structure_name(mo.structure()).value().c_str();
+  }
+
+  // TODO: implement this
+  //  for (auto&& v : user_keys.items()) {
+  //    json[v.key()] = v.value();
+  //  }
 }
 
 } // namespace binsparse

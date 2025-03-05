@@ -1,6 +1,7 @@
 function(add_example example_name)
   add_executable(${example_name} ${example_name}.cpp)
-  target_link_libraries(${example_name} binsparse fmt)
+  target_link_libraries(${example_name} binsparse fmt Metall::Metall Threads::Threads ${BOOST_COMPONENTS})
+  target_compile_definitions(${example_name} PRIVATE METALL_LINK_WITH_BOOST_JSON)
 endfunction()
 
 add_example(convert_binsparse)

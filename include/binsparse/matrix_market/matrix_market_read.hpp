@@ -2,17 +2,23 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <metall/container/vector.hpp>
 #include <ranges>
 
 namespace binsparse {
 
 namespace __detail {
 
-template <typename T, typename I>
+template <typename T, typename I, typename Allocator = std::allocator<T>>
 class csr_matrix_owning {
 public:
-  csr_matrix_owning(std::tuple<I, I> shape, structure_t structure = general)
-      : shape_(shape), structure_(structure) {}
+  using allocator_type = Allocator;
+
+  csr_matrix_owning(std::tuple<I, I> shape, structure_t structure = general,
+                    const allocator_type& alloc = allocator_type())
+      : shape_(shape), values_(alloc), rowptr_(alloc), colind_(alloc),
+        structure_(structure) {}
 
   auto values() {
     return std::ranges::views::all(values_);
@@ -87,17 +93,21 @@ public:
 
 private:
   std::tuple<I, I> shape_;
-  std::vector<T> values_;
-  std::vector<I> rowptr_;
-  std::vector<I> colind_;
+  metall::container::vector<T> values_;
+  metall::container::vector<I> rowptr_;
+  metall::container::vector<I> colind_;
   structure_t structure_;
 };
 
-template <typename T, typename I>
+template <typename T, typename I, typename Allocator = std::allocator<T>>
 class coo_matrix_owning {
 public:
-  coo_matrix_owning(std::tuple<I, I> shape, structure_t structure = general)
-      : shape_(shape), structure_(structure) {}
+  using allocator_type = Allocator;
+
+  coo_matrix_owning(std::tuple<I, I> shape, structure_t structure = general,
+                    const allocator_type& alloc = allocator_type())
+      : shape_(shape), values_(alloc), rowind_(alloc), colind_(alloc),
+        structure_(structure) {}
 
   auto values() {
     return std::ranges::views::all(values_);
@@ -157,16 +167,18 @@ public:
 
 private:
   std::tuple<I, I> shape_;
-  std::vector<T> values_;
-  std::vector<I> rowind_;
-  std::vector<I> colind_;
+  metall::container::vector<T> values_;
+  metall::container::vector<I> rowind_;
+  metall::container::vector<I> colind_;
   structure_t structure_;
 };
 
 /// Read in the Matrix Market file at location `file_path` and
 /// return a data structure with the matrix.
 template <typename T, typename I, typename MatrixType>
-inline MatrixType mmread(std::string file_path, bool one_indexed = true) {
+inline MatrixType
+mmread(std::string file_path, bool one_indexed = true,
+       const typename MatrixType::allocator_type& alloc = {}) {
   using index_type = I;
   using size_type = std::size_t;
 
@@ -235,7 +247,7 @@ inline MatrixType mmread(std::string file_path, bool one_indexed = true) {
   ss.str(buf);
   ss >> m >> n >> nnz;
 
-  MatrixType m_out({m, n}, structure);
+  MatrixType m_out({m, n}, structure, alloc);
 
   using coo_type = std::vector<std::tuple<std::tuple<I, I>, T>>;
   coo_type matrix;
@@ -292,6 +304,13 @@ inline MatrixType mmread(std::string file_path, bool one_indexed = true) {
   f.close();
 
   return m_out;
+}
+
+template <typename T, typename I, typename MatrixType>
+inline MatrixType
+mmread(std::string file_path,
+       const typename MatrixType::allocator_type& alloc) {
+  return mmread<T, I, MatrixType>(file_path, true, alloc);
 }
 
 /// Read in the Matrix Market file at location `file_path` and

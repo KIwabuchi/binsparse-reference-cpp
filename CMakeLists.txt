@@ -29,6 +29,30 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     GIT_TAG 10.1.1)
   FetchContent_MakeAvailable(fmt)
 
+  # Boost
+  FetchContent_Declare(
+    Boost
+    URL https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.xz
+    URL_MD5 893b5203b862eb9bbd08553e24ff146a
+    DOWNLOAD_EXTRACT_TIMESTAMP ON
+  )
+  set(BOOST_INCLUDE_LIBRARIES json unordered interprocess container property_tree uuid)
+  FetchContent_MakeAvailable(Boost)
+  foreach(lib ${BOOST_INCLUDE_LIBRARIES})
+      list(APPEND BOOST_COMPONENTS "Boost::${lib}")
+  endforeach()
+
+  # Threads
+  find_package(Threads)
+
+  # Metall
+  FetchContent_Declare(
+    Metall
+    GIT_REPOSITORY https://github.com/LLNL/metall.git
+    GIT_TAG v0.30
+  )
+  FetchContent_MakeAvailable(Metall)
+
   set(CMAKE_CXX_FLAGS "-O3 -march=native")
 
   add_subdirectory(examples)
