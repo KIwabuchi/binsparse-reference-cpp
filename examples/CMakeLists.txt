@@ -1,10 +1,10 @@
 function(add_example example_name)
   add_executable(${example_name} ${example_name}.cpp)
   target_link_libraries(${example_name} binsparse fmt Metall::Metall Threads::Threads ${BOOST_COMPONENTS})
-  target_compile_definitions(${example_name} PRIVATE METALL_LINK_WITH_BOOST_JSON)
 endfunction()
 
 add_example(convert_binsparse)
 add_example(text2hdf5)
 add_example(inspect_binsparse)
 add_example(convert_matrixmarket)
+add_example(benchmark_write)
