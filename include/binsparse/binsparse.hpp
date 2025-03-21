@@ -183,14 +183,15 @@ nlohmann::json make_csr_json_metadata(csr_matrix<T, I> m, nlohmann::json user_ke
 
 template <typename T, typename I>
 void write_csr_matrix(H5::Group& f, csr_matrix<T, I> m,
-                      nlohmann::json user_keys = {}) {
+                      nlohmann::json user_keys = {},
+                      const int def_level = 9) {
   std::span<T> values(m.values, m.nnz);
   std::span<I> colind(m.colind, m.nnz);
   std::span<I> row_ptr(m.row_ptr, m.m + 1);
 
-  hdf5_tools::write_dataset(f, "values", values);
-  hdf5_tools::write_dataset(f, "indices_1", colind);
-  hdf5_tools::write_dataset(f, "pointers_to_1", row_ptr);
+  hdf5_tools::write_dataset(f, "values", values, def_level);
+  hdf5_tools::write_dataset(f, "indices_1", colind,def_level);
+  hdf5_tools::write_dataset(f, "pointers_to_1", row_ptr,def_level);
 
   auto j = make_csr_json_metadata(m, user_keys);
   hdf5_tools::set_attribute(f, "binsparse", j.dump(2));
@@ -198,9 +199,10 @@ void write_csr_matrix(H5::Group& f, csr_matrix<T, I> m,
 
 template <typename T, typename I>
 void write_csr_matrix(std::string fname, csr_matrix<T, I> m,
-                      nlohmann::json user_keys = {}) {
+                      nlohmann::json user_keys = {},
+                      const int def_level = 9) {
   H5::H5File f(fname.c_str(), H5F_ACC_TRUNC);
-  write_csr_matrix(f, m, user_keys);
+  write_csr_matrix(f, m, user_keys, def_level);
   f.close();
 }
 
@@ -209,7 +211,7 @@ void write_csr_matrix(metall::manager& manager, csr_matrix<T, I> m,
                       nlohmann::json user_keys = {}) {
   // We do nothing with m as it is already in metall
   auto j = make_csr_json_metadata(m, user_keys);
-  manager.construct<metall::container::string>("binsparse")(j.dump(2), manager.get_allocator<>());
+  manager.construct<metall::container::string>("binsparse-metadata")(j.dump(2), manager.get_allocator<>());
 }
 
 inline void parse_csr_json_metadata(const nlohmann::json& data, std::size_t& nrows,
@@ -268,7 +270,7 @@ csr_matrix<T, I> read_csr_matrix(std::string fname) {
 
 template <typename T, typename I>
 csr_matrix<T, I> read_csr_matrix(metall::manager& manager) {
-  auto& metadata = *(manager.find<metall::container::string>("binsparse").first);
+  auto& metadata = *(manager.find<metall::container::string>("binsparse-metadata").first);
 
   using json = nlohmann::json;
   auto data = json::parse(metadata);
@@ -280,9 +282,10 @@ csr_matrix<T, I> read_csr_matrix(metall::manager& manager) {
 
   using A = metall::manager::allocator_type<T>;
   using M = binsparse::__detail::csr_matrix_owning<T, I, A>;
-  auto x = *(manager.find<M>(metall::unique_instance).first);
+  auto x = manager.find<M>(metall::unique_instance).first;
+  assert(x);
 
-  return csr_matrix<T, I>{x.values.data(), x.colind.data(), x.row_ptr.data(), nrows,
+  return csr_matrix<T, I>{x->values().data(), x->colind().data(), x->rowptr().data(), nrows,
                           ncols,         nnz,           structure,      is_iso};
 }
 
@@ -450,6 +453,15 @@ void write_coo_matrix(std::string fname, coo_matrix<T, I> m,
   f.close();
 }
 
+template <typename T, typename I>
+void write_coo_matrix(metall::manager& manager, coo_matrix<T, I> m,
+                      nlohmann::json user_keys = {}) {
+
+  auto j = make_coo_json_metadata(m, user_keys);
+  manager.construct<metall::container::string>("binsparse-metadata")(j.dump(2), manager.get_allocator<>());
+}
+
+
 inline void parse_coo_json_metadata(const nlohmann::json& data, std::size_t& nrows,
                                     std::size_t& ncols, std::size_t& nnz, bool& is_iso,
                                     structure_t& structure) {
@@ -503,6 +515,27 @@ coo_matrix<T, I> read_coo_matrix(std::string fname, Allocator&& alloc) {
 template <typename T, typename I>
 coo_matrix<T, I> read_coo_matrix(std::string fname) {
   return read_coo_matrix<T, I>(fname, std::allocator<T>{});
+}
+
+template <typename T, typename I>
+coo_matrix<T, I> read_coo_matrix(metall::manager& manager) {
+  auto& metadata = *(manager.find<metall::container::string>("binsparse-metadata").first);
+
+  using json = nlohmann::json;
+  auto data = json::parse(metadata);
+
+  std::size_t nrows, ncols, nnz;
+  bool is_iso;
+  structure_t structure;
+  parse_coo_json_metadata(data, nrows, ncols, nnz, is_iso, structure);
+
+  using A = metall::manager::allocator_type<T>;
+  using M = binsparse::__detail::coo_matrix_owning<T, I, A>;
+  auto x = manager.find<M>(metall::unique_instance).first;
+  assert(x);
+
+  return coo_matrix<T, I>{x->values().data(), x->rowind().data(), x->colind().data(), nrows,
+                          ncols,         nnz,         structure,   is_iso};
 }
 
 inline auto inspect(std::string fname) {

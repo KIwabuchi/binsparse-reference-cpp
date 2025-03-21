@@ -123,7 +123,8 @@ inline H5::PredType get_type(H5::DataSet& dataset) {
 
 template <typename H5GroupOrFile, std::ranges::contiguous_range R>
   requires(!std::is_same_v<std::remove_cvref_t<R>, std::string>)
-void write_dataset(H5GroupOrFile& f, const std::string& label, R&& r) {
+void write_dataset(H5GroupOrFile& f, const std::string& label, R&& r,
+  int def_level = 9) {
   using T = std::ranges::range_value_t<R>;
   hsize_t size = std::ranges::size(r);
   H5::DataSpace dataspace(1, &size);

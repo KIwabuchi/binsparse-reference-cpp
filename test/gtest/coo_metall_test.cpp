@@ -7,46 +7,68 @@
 TEST(BinsparseReadWrite, COOFormat) {
   using T = float;
   using I = std::size_t;
+  using A = metall::manager::allocator_type<T>;
+  using M = binsparse::__detail::coo_matrix_owning<T, I, A>;
 
   std::string binsparse_dir = "out.bsp.metall";
 
   auto base_path = find_prefix(files.front());
 
   for (auto&& file : files) {
-    metall::manager manager(metall::create_only, binsparse_dir);
-    using A = metall::manager::allocator_type<T>;
-    using M = binsparse::__detail::coo_matrix_owning<T, I, A>;
-    auto x = *manager.construct<M>(metall::unique_instance)
-                                          (manager.get_allocator<>());
+    // Keep some values for checking values afeter reading
+    I nnz;
+    I m;
+    I n;
+    std::vector<T> values;
+    std::vector<I> rowind;
+    std::vector<I> colind;
+    {
+      metall::manager manager(metall::create_only, binsparse_dir);
+      auto& x = *(manager.construct<M>(metall::unique_instance)
+                                            (manager.get_allocator<>()));
 
-    auto file_path = base_path + file;
-    binsparse::__detail::mmread<T, I, M>(file_path,x);
+      auto file_path = base_path + file;
+      binsparse::__detail::mmread<T, I, M>(file_path,x);
 
-    auto&& [num_rows, num_columns] = x.shape();
-    binsparse::coo_matrix<T, I> matrix{x.values().data(), x.rowind().data(),
-                                       x.colind().data(), num_rows,
-                                       num_columns,       I(x.size())};
-    binsparse::write_coo_matrix(manager, matrix);
+      auto&& [num_rows, num_columns] = x.shape();
+      binsparse::coo_matrix<T, I> matrix{x.values().data(), x.rowind().data(),
+                                         x.colind().data(), num_rows,
+                                         num_columns,       I(x.size())};
+      binsparse::write_coo_matrix(manager, matrix);
 
-    auto x_ = binsparse::read_coo_matrix<T, I, A>(manager);
-    std::tie(num_rows, num_columns) = x_.shape();
-    binsparse::coo_matrix<T, I> matrix_{x_.values().data(), x_.rowind().data(),
-                                        x_.colind().data(), num_rows,
-                                        num_columns,        I(x_.size())};
-    EXPECT_EQ(matrix.nnz, matrix_.nnz);
-    EXPECT_EQ(matrix.m, matrix_.m);
-    EXPECT_EQ(matrix.n, matrix_.n);
-
-    for (I i = 0; i < matrix.nnz; i++) {
-      EXPECT_EQ(matrix.values[i], matrix_.values[i]);
+      nnz = matrix.nnz;
+      m = matrix.m;
+      n = matrix.n;
+      for (I i = 0; i < nnz; i++) {
+        values.push_back(matrix.values[i]);
+      }
+      for (I i = 0; i < nnz; i++) {
+        rowind.push_back(matrix.rowind[i]);
+      }
+      for (I i = 0; i < nnz; i++) {
+        colind.push_back(matrix.colind[i]);
+      }
     }
 
-    for (I i = 0; i < matrix.nnz; i++) {
-      EXPECT_EQ(matrix.rowind[i], matrix_.rowind[i]);
-    }
+    {
+      metall::manager manager(metall::open_only, binsparse_dir);
+      auto matrix_ = binsparse::read_coo_matrix<T, I>(manager);
 
-    for (I i = 0; i < matrix.nnz; i++) {
-      EXPECT_EQ(matrix.colind[i], matrix_.colind[i]);
+      EXPECT_EQ(matrix_.nnz, nnz);
+      EXPECT_EQ(matrix_.m, m);
+      EXPECT_EQ(matrix_.n, n);
+
+      for (I i = 0; i < matrix_.nnz; i++) {
+        EXPECT_EQ(matrix_.values[i], values[i]);
+      }
+
+      for (I i = 0; i < matrix_.nnz; i++) {
+        EXPECT_EQ(matrix_.rowind[i], rowind[i]);
+      }
+
+      for (I i = 0; i < matrix_.nnz; i++) {
+        EXPECT_EQ(matrix_.colind[i], colind[i]);
+      }
     }
   }
 
