@@ -131,7 +131,7 @@ void write_dataset(H5GroupOrFile& f, const std::string& label, R&& r,
 
   H5::DSetCreatPropList property_list;
   property_list.setChunk(1, &size);
-  property_list.setDeflate(9);
+  property_list.setDeflate(def_level);
 
   auto dataset = f.createDataSet(label.c_str(), get_hdf5_standard_type<T>(),
                                  dataspace, property_list);
