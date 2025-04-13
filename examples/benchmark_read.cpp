@@ -17,6 +17,9 @@ void touch_matrix(const binsparse::csr_matrix<T, I>& matrix) {
   #pragma omp parallel for
   for (I i = 0; i < matrix.nnz; i++) {
     [[maybe_unused]] volatile const T value = matrix.values[i];
+    if (i < 10) { // Print the first 10 values for validation
+      std::cout << "Value at index " << i << ": " << value << std::endl;
+    }
   }
 }
 
