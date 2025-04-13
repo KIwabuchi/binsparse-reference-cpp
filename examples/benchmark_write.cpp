@@ -40,12 +40,18 @@ void bench_hdf5(const std::filesystem::path& file_path,
 }
 
 void bench_metall(const std::filesystem::path& file_path,
-                  const std::filesystem::path& binsparse_path) {
+                  const std::filesystem::path& binsparse_path,
+                  const bool metall_use_scratchpad) {
   using A = metall::manager::allocator_type<T>;
   using M = binsparse::__detail::csr_matrix_owning<T, I, A>;
+  const auto metall_path = metall_use_scratchpad ? "/dev/shm/metall-binsparse" : binsparse_path;
+
+  if (metall_use_scratchpad) {
+    std::cout << "Using scratchpad mode" << std::endl;
+  }
 
   // Create a Metall manager instance
-  auto* manager = new metall::manager(metall::create_only, binsparse_path);
+  auto* manager = new metall::manager(metall::create_only, metall_path);
   // Allocate and construct an instance of M using Metall.
   // manager::construct() returns a pointer to the instance.
   // From now on, 'x' can be used as a normal instance of M.
@@ -73,6 +79,13 @@ void bench_metall(const std::filesystem::path& file_path,
     // We delete manager here to do a fair comparison with the HDF5 case as
     // this process is somewhat similar to closing the HDF5 file.
     delete manager;
+
+    if (metall_use_scratchpad) {
+      auto start_copy = start_time();
+      metall::manager::copy(metall_path, binsparse_path);
+      auto elapsed_copy = elapsed_time_sec(start_copy);
+      std::cout << "Copying binsparse matrix took " << elapsed_copy << " s" << std::endl;
+    }
     auto elapsed = elapsed_time_sec(start);
     std::cout << "Writing Metall binsparse matrix took " << elapsed << " s" << std::endl;
   }
@@ -84,12 +97,16 @@ int main(int argc, char** argv) {
   std::filesystem::path file_path = argv[1];
   std::filesystem::path binsparse_path = argv[2];
   std::string mode = argv[3];
+  bool metall_use_scratchpad = false;
+  if (argc > 4) {
+    metall_use_scratchpad = std::stoi(argv[4]) == 1;
+  }
 
   if (mode == "h5") {
     H5::DSetCreatPropList prop;
     bench_hdf5(file_path, binsparse_path);
   } else if (mode == "metall") {
-    bench_metall(file_path, binsparse_path);
+    bench_metall(file_path, binsparse_path, metall_use_scratchpad);
   } else {
     std::cerr << "Unknown mode" << std::endl;
     return 1;

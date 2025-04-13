@@ -130,8 +130,8 @@ void write_dataset(H5GroupOrFile& f, const std::string& label, R&& r,
   H5::DataSpace dataspace(1, &size);
 
   H5::DSetCreatPropList property_list;
-  // Maximum chunk size is 2^32, use 2^31 just to be safe
-  const hsize_t chunk_size = std::min<size_t>(size, 1ULL << 31);
+  // Maximum chunk size is 2^32, use 2^28 just to be safe
+  const hsize_t chunk_size = std::min<size_t>(size, 1ULL << 28);
   property_list.setChunk(1, &chunk_size);
   property_list.setDeflate(def_level);
 

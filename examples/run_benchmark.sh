@@ -8,15 +8,19 @@
 
 MATRIX_DATASET=""
 BINSPARSE_PATH=""
+METALL_SCRATCHPAD_MODE=0
 
 # Parse command line arguments
-while getopts "d:b:" opt; do
+while getopts "d:b:s" opt; do
   case ${opt} in
     d)
       MATRIX_DATASET=${OPTARG}
       ;;
     b)
       BINSPARSE_PATH=${OPTARG}
+      ;;
+    s)
+      METALL_SCRATCHPAD_MODE=1
       ;;
     \?)
       echo "Invalid option: $OPTARG" 1>&2
@@ -56,12 +60,12 @@ run_benchmark() {
 
   drop_caches
 
-  ./examples/benchmark_write ${dataset} ${binsparse_path} ${mode}
+  ./examples/benchmark_write ${dataset} ${binsparse_path} ${mode} ${METALL_SCRATCHPAD_MODE}
 
   if [ ${do_drop_caches} -eq 1 ]; then
     drop_caches
   fi
-  ./examples/benchmark_read ${binsparse_path} ${mode}
+  ./examples/benchmark_read ${binsparse_path} ${mode} ${METALL_SCRATCHPAD_MODE}
 
   echo "Removing the binsparse path ${binsparse_path}"
   rm -rf ${binsparse_path}
