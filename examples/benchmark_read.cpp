@@ -45,7 +45,7 @@ void bench_metall(const std::filesystem::path& binsparse_path,
     auto start_copy = start_time();
     metall::manager::copy(binsparse_path, metall_path);
     auto elapsed_copy = elapsed_time_sec(start_copy);
-    std::cout << "Copying binsparse matrix took " << elapsed_copy << " s" << std::endl;
+    std::cout << "(copying binsparse matrix took " << elapsed_copy << " s)" << std::endl;
   }
   metall::manager manager(metall::open_only, metall_path);
   auto matrix_ = binsparse::read_csr_matrix<T, I>(manager);

@@ -84,7 +84,7 @@ void bench_metall(const std::filesystem::path& file_path,
       auto start_copy = start_time();
       metall::manager::copy(metall_path, binsparse_path);
       auto elapsed_copy = elapsed_time_sec(start_copy);
-      std::cout << "Copying binsparse matrix took " << elapsed_copy << " s" << std::endl;
+      std::cout << "(copying binsparse matrix took " << elapsed_copy << " s)" << std::endl;
     }
     auto elapsed = elapsed_time_sec(start);
     std::cout << "Writing Metall binsparse matrix took " << elapsed << " s" << std::endl;
