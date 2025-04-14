@@ -9,5 +9,6 @@ add_example(inspect_binsparse)
 add_example(convert_matrixmarket)
 add_example(benchmark_write)
 add_example(benchmark_read)
+add_example(copy_metall)
 
 add_example(benchmark_hdf5_simple)
