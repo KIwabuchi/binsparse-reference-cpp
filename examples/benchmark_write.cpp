@@ -44,7 +44,7 @@ void bench_metall(const std::filesystem::path& file_path,
                   const bool metall_use_scratchpad) {
   using A = metall::manager::allocator_type<T>;
   using M = binsparse::__detail::csr_matrix_owning<T, I, A>;
-  const auto metall_path = metall_use_scratchpad ? "/dev/shm/metall-binsparse" : binsparse_path;
+  const auto metall_path = metall_use_scratchpad ? "/dev/shm/binsprs-mtl-scrpd" : binsparse_path;
 
   if (metall_use_scratchpad) {
     std::cout << "Using scratchpad mode" << std::endl;

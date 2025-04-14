@@ -37,7 +37,7 @@ void bench_hdf5(const std::filesystem::path& binsparse_path) {
 
 void bench_metall(const std::filesystem::path& binsparse_path,
                   const bool metall_use_scratchpad) {
-  const auto metall_path = metall_use_scratchpad ? "/dev/shm/metall-binsparse" : binsparse_path;
+  const auto metall_path = metall_use_scratchpad ? "/dev/shm/binsprs-mtl-scrpd" : binsparse_path;
 
   auto start = start_time();
   if (metall_use_scratchpad) {
